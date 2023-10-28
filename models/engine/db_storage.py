@@ -47,7 +47,7 @@ class DBStorage:
         """ returns a dictionary of all objects """
         obj_dict = {}
         if cls:
-            obj_class = self.__session.query(self.CNC.get(cls)).all()
+            obj_class = self.__session.query(self.classes.get(cls)).all()
             for item in obj_class:
                 obj_dict[item.id] = item
             return obj_dict
@@ -55,7 +55,7 @@ class DBStorage:
             if class_name == 'BaseModel':
                 continue
             obj_class = self.__session.query(
-                self.CNC.get(class_name)).all()
+                self.classes.get(class_name)).all()
             for item in obj_class:
                 obj_dict[item.id] = item
         return obj_dict
@@ -92,7 +92,7 @@ class DBStorage:
         try:
             obj_dict = {}
             if cls:
-                obj_class = self.__session.query(self.CNC.get(cls)).all()
+                obj_class = self.__session.query(self.classes.get(cls)).all()
                 for item in obj_class:
                     obj_dict[item.id] = item
             return obj_dict[id]
@@ -103,12 +103,12 @@ class DBStorage:
         """ counts number of objects in storage """
         obj_dict = {}
         if cls:
-            obj_class = self.__session.query(self.CNC.get(cls)).all()
+            obj_class = self.__session.query(self.classes.get(cls)).all()
             for item in obj_class:
                 obj_dict[item.id] = item
             return len(obj_dict)
         else:
-            for cls_name in self.CNC:
+            for cls_name in self.classes:
                 if cls_name == 'BaseModel':
                     continue
                 obj_class = self.__session.query(self.CNC.get(cls_name)).all()
