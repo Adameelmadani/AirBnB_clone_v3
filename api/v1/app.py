@@ -85,10 +85,5 @@ def setup_global_errors():
 
 
 if __name__ == "__main__":
-    """
-    MAIN Flask App
-    """
-    # initializes global error handling
     setup_global_errors()
-    # start Flask app
     app.run(host=host, port=port)
