@@ -1,26 +1,20 @@
 #!/usr/bin/python3
 """
-Contains the class DBStorage
+Database engine
 """
 
-import models
-from models.amenity import Amenity
-from models.base_model import BaseModel, Base
-from models.city import City
-from models.place import Place
-from models.review import Review
-from models.state import State
-from models.user import User
-from os import getenv
-import sqlalchemy
-from sqlalchemy import create_engine
-from sqlalchemy.orm import scoped_session, sessionmaker
+import os
+from sqlalchemy import create_engine, MetaData
+from sqlalchemy.orm import sessionmaker, scoped_session
+from models.base_model import Base
+from models import base_model, amenity, city, place, review, state, user
+
 
 class DBStorage:
-    """interaacts with the MySQL database"""
-
-    classes = {
-        'BaseModel': base_model.BaseModel,
+    """
+        handles long term storage of all class instances
+    """
+    CNC = {
         'Amenity': amenity.Amenity,
         'City': city.City,
         'Place': place.Place,
@@ -29,11 +23,16 @@ class DBStorage:
         'User': user.User
     }
 
+    """
+        handles storage for database
+    """
     __engine = None
     __session = None
 
     def __init__(self):
-        """ creates the engine self.__engine """
+        """
+            creates the engine self.__engine
+        """
         self.__engine = create_engine(
             'mysql+mysqldb://{}:{}@{}/{}'.format(
                 os.environ.get('HBNB_MYSQL_USER'),
@@ -44,37 +43,66 @@ class DBStorage:
             Base.metadata.drop_all(self.__engine)
 
     def all(self, cls=None):
-        """ returns a dictionary of all objects """
+        """
+           returns a dictionary of all objects
+        """
         obj_dict = {}
-        if cls:
-            obj_class = self.__session.query(self.classes.get(cls)).all()
-            for item in obj_class:
-                obj_dict[item.id] = item
+        if cls is not None:
+            a_query = self.__session.query(DBStorage.CNC[cls])
+            for obj in a_query:
+                obj_ref = "{}.{}".format(type(obj).__name__, obj.id)
+                obj_dict[obj_ref] = obj
             return obj_dict
-        for class_name in self.CNC:
-            if class_name == 'BaseModel':
-                continue
-            obj_class = self.__session.query(
-                self.classes.get(class_name)).all()
-            for item in obj_class:
-                obj_dict[item.id] = item
+
+        for c in DBStorage.CNC.values():
+            a_query = self.__session.query(c)
+            for obj in a_query:
+                obj_ref = "{}.{}".format(type(obj).__name__, obj.id)
+                obj_dict[obj_ref] = obj
         return obj_dict
 
     def new(self, obj):
-        """ adds objects to current database session """
+        """
+            adds objects to current database session
+        """
         self.__session.add(obj)
 
     def save(self):
-        """ commits all changes of current database session """
+        """
+            commits all changes of current database session
+        """
         self.__session.commit()
 
+    def rollback_session(self):
+        """
+            rollsback a session in the event of an exception
+        """
+        self.__session.rollback()
+
     def delete(self, obj=None):
-        """ deletes obj from current database session if not None """
-        if obj is not None:
+        """
+            deletes obj from current database session if not None
+        """
+        if obj:
             self.__session.delete(obj)
+            self.save()
+
+    def delete_all(self):
+        """
+           deletes all stored objects, for testing purposes
+        """
+        for c in DBStorage.CNC.values():
+            a_query = self.__session.query(c)
+            all_objs = [obj for obj in a_query]
+            for obj in range(len(all_objs)):
+                to_delete = all_objs.pop(0)
+                to_delete.delete()
+        self.save()
 
     def reload(self):
-        """ creates all tables in database & session from engine """
+        """
+           creates all tables in database & session from engine
+        """
         Base.metadata.create_all(self.__engine)
         self.__session = scoped_session(
             sessionmaker(
@@ -88,30 +116,17 @@ class DBStorage:
         self.__session.remove()
 
     def get(self, cls, id):
-        """ retrieves one object """
-        try:
-            obj_dict = {}
-            if cls:
-                obj_class = self.__session.query(self.classes.get(cls)).all()
-                for item in obj_class:
-                    obj_dict[item.id] = item
-            return obj_dict[id]
-        except:
-            return None
+        """
+            retrieves one object based on class name and id
+        """
+        if cls and id:
+            fetch = "{}.{}".format(cls, id)
+            all_obj = self.all(cls)
+            return all_obj.get(fetch)
+        return None
 
     def count(self, cls=None):
-        """ counts number of objects in storage """
-        obj_dict = {}
-        if cls:
-            obj_class = self.__session.query(self.classes.get(cls)).all()
-            for item in obj_class:
-                obj_dict[item.id] = item
-            return len(obj_dict)
-        else:
-            for cls_name in self.classes:
-                if cls_name == 'BaseModel':
-                    continue
-                obj_class = self.__session.query(self.CNC.get(cls_name)).all()
-                for item in obj_class:
-                    obj_dict[item.id] = item
-            return len(obj_dict)
+        """
+            returns the count of all objects in storage
+        """
+        return (len(self.all(cls)))
